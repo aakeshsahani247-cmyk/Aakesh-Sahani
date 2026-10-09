@@ -1,0 +1,824 @@
+DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Cyber Highway: Traffic Racer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background: #090a0f;
+      color: #fff;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 440px;
+      height: 100vh;
+      max-height: 840px;
+      background: #11131a;
+      box-shadow: 0 0 40px rgba(0, 242, 254, 0.2);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #12141d;
+    }
+    .hud {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+      z-index: 5;
+    }
+    .hud-card {
+      background: rgba(10, 14, 26, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      border-radius: 8px;
+      padding: 6px 14px;
+      text-align: center;
+    }
+    .hud-title {
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #7d8b99;
+    }
+    .hud-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: #00f2fe;
+      text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+    }
+    .alert-banner {
+      position: absolute;
+      top: 90px;
+      width: 100%;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: #ff0077;
+      text-shadow: 0 0 15px #ff0077;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 6;
+      transform: scale(0.8);
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(5, 7, 15, 0.88);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+      z-index: 10;
+    }
+    .overlay.hidden {
+      display: none;
+    }
+    .title {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+    }
+    .btn {
+      background: linear-gradient(135deg, #00f2fe, #0072ff);
+      color: #000;
+      font-size: 16px;
+      font-weight: 800;
+      padding: 12px 36px;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .btn:active {
+      transform: scale(0.96);
+    }
+    .mobile-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 5;
+    }
+    .touch-btn {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.7);
+      border: 2px solid rgba(0, 242, 254, 0.4);
+      color: #00f2fe;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+  <canvas id="roadCanvas" width="400" height="750"></canvas>
+
+  <div class="hud">
+    <div class="hud-card">
+      <div class="hud-title">Speed</div>
+      <div class="hud-val" id="speedVal">0 <span style="font-size: 11px;">KM/H</span></div>
+    </div>
+    <div class="hud-card">
+      <div class="hud-title">Score</div>
+      <div class="hud-val" id="scoreVal">0</div>
+    </div>
+  </div>
+
+  <div id="closeCallBanner" class="alert-banner">⚡ CLOSE CALL +150!</div>
+
+  <div id="mobileControls" class="mobile-controls">
+    <div class="touch-btn" id="leftBtn">◀</div>
+    <div class="touch-btn" id="boostBtn" style="border-color:#ff0077; color:#ff0077;">🚀</div>
+    <div class="touch-btn" id="rightBtn">▶</div>
+  </div>
+
+  <div id="startScreen" class="overlay">
+    <h1 class="title">CYBER RACER</h1>
+    <p class="subtitle">Dodge Traffic & Claim High Speeds</p>
+    <button class="btn" id="startBtn">START DRIVE</button>
+  </div>
+
+  <div id="gameOverScreen" class="overlay hidden">
+    <h1 class="title" style="background: linear-gradient(135deg, #ff0844, #ffb199); -webkit-background-clip: text;">WRECKED!</h1>
+    <p class="subtitle" id="finalScoreTxt">Score: 0</p>
+    <button class="btn" id="restartBtn">RETRY</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('roadCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Audio Context (No external audio files needed)
+  let audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  function playTone(freq, type = 'sine', duration = 0.1, gain = 0.1) {
+    if (!audioCtx) return;
+    try {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      g.gain.setValueAtTime(gain, audioCtx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(g);
+      g.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch(e) {}
+  }
+
+  // Road & Lane Constants
+  const LANES = [80, 160, 240, 320];
+  let roadOffset = 0;
+  let gameRunning = false;
+  let score = 0;
+  let speed = 90; // km/h
+  let targetSpeed = 90;
+  let boostActive = false;
+
+  // Car Physics
+  const player = {
+    x: 200,
+    y: 600,
+    width: 44,
+    height: 78,
+    vx: 0,
+    targetX: 200,
+    tilt: 0
+  };
+
+  let traffic = [];
+  let particles = [];
+  const keys = { left: false, right: false, up: false };
+
+  function spawnTraffic() {
+    const laneIndex = Math.floor(Math.random() * LANES.length);
+    const laneX = LANES[laneIndex];
+    // Avoid spawning on top of existing cars
+    const overlaps = traffic.some(car => Math.abs(car.y - (-100)) < 150 && car.lane === laneIndex);
+    if (!overlaps) {
+      const colors = ['#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#ffffff'];
+      traffic.push({
+        lane: laneIndex,
+        x: laneX,
+        y: -100,
+        width: 44,
+        height: 76,
+        speedModifier: Math.random() * 20 - 10,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        passed: false
+      });
+    }
+  }
+
+  function drawCar(x, y, color, isPlayer = false, tilt = 0) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate((tilt * Math.PI) / 180);
+
+    // Car Body
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = isPlayer ? 14 : 6;
+    ctx.beginPath();
+    ctx.roundRect(-22, -39, 44, 78, 10);
+    ctx.fill();
+
+    // Windshield & Roof
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.roundRect(-16, -18, 32, 40, 6);
+    ctx.fill();
+
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.roundRect(-14, -5, 28, 22, 4);
+    ctx.fill();
+
+    // Headlights
+    ctx.fillStyle = isPlayer ? '#00f2fe' : '#fef08a';
+    ctx.shadowColor = ctx.fillStyle;
+    ctx.shadowBlur = 8;
+    ctx.fillRect(-18, -37, 8, 4);
+    ctx.fillRect(10, -37, 8, 4);
+
+    // Taillights
+    ctx.fillStyle = '#ef4444';
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 8;
+    ctx.fillRect(-18, 35, 8, 3);
+    ctx.fillRect(10, 35, 8, 3);
+
+    ctx.restore();
+  }
+
+  function createParticles(x, y, count, color) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: x + (Math.random() * 16 - 8),
+        y: y,
+        vx: (Math.random() - 0.5) * 4,
+        vy: Math.random() * 4 + 2,
+        life: 1,
+        color: color
+      });
+    }
+  }
+
+  function showCloseCall() {
+    const banner = document.getElementById('closeCallBanner');
+    banner.style.opacity = '1';
+    banner.style.transform = 'scale(1.1)';
+    playTone(587.33, 'triangle', 0.15, 0.15); // D5
+    setTimeout(() => {
+      banner.style.opacity = '0';
+      banner.style.transform = 'scale(0.8)';
+    }, 600);
+  }
+
+  function update() {
+    if (!gameRunning) return;
+
+    // Speed Logic
+    targetSpeed = boostActive || keys.up ? 170 : 100;
+    speed += (targetSpeed - speed) * 0.05;
+    score += Math.floor(speed / 30);
+
+    document.getElementById('speedVal').innerHTML = `${Math.floor(speed)} <span style="font-size: 11px;">KM/H</span>`;
+    document.getElementById('scoreVal').innerText = score;
+
+    // Movement
+    if (keys.left) player.vx -= 1.8;
+    if (keys.right) player.vx += 1.8;
+    player.vx *= 0.82;
+    player.x += player.vx;
+    player.tilt = player.vx * 2.2;
+
+    // Road Bounds
+    if (player.x < 50) { player.x = 50; player.vx = 0; }
+    if (player.x > 350) { player.x = 350; player.vx = 0; }
+
+    // Road scroll
+    roadOffset = (roadOffset + speed * 0.12) % 40;
+
+    // Exhaust Particles
+    if (Math.random() < 0.6) {
+      createParticles(player.x, player.y + 40, boostActive ? 4 : 1, boostActive ? '#00f2fe' : '#475569');
+    }
+
+    // Traffic Update
+    if (Math.random() < 0.025 && traffic.length < 5) {
+      spawnTraffic();
+    }
+
+    for (let i = traffic.length - 1; i >= 0; i--) {
+      const car = traffic[i];
+      // Relative velocity: player speed vs traffic speed
+      const relativeSpeed = (speed - (70 + car.speedModifier)) * 0.1;
+      car.y += relativeSpeed;
+
+      // Close call bonus detection
+      const dx = Math.abs(car.x - player.x);
+      const dy = Math.abs(car.y - player.y);
+      if (!car.passed && dy < 60 && dx < 55 && dx > 28) {
+        car.passed = true;
+        score += 150;
+        showCloseCall();
+      }
+
+      // Collision Detection (AABB)
+      if (dx < 36 && dy < 66) {
+        gameOver();
+        return;
+      }
+
+      // Clean off-screen
+      if (car.y > 850 || car.y < -200) {
+        traffic.splice(i, 1);
+      }
+    }
+
+    // Particle Update
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.04;
+      if (p.life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Road Base
+    ctx.fillStyle = '#0f131a';
+    ctx.fillRect(30, 0, 340, canvas.height);
+
+    // Neon Road Borders
+    ctx.strokeStyle = '#00f2fe';
+    ctx.shadowColor = '#00f2fe';
+    ctx.shadowBlur = 10;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(30, 0); ctx.lineTo(30, canvas.height);
+    ctx.moveTo(370, 0); ctx.lineTo(370, canvas.height);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Lane Dividers
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([25, 20]);
+    ctx.lineDashOffset = -roadOffset;
+    for (let i = 1; i < LANES.length; i++) {
+      const dividerX = (LANES[i - 1] + LANES[i]) / 2;
+      ctx.beginPath();
+      ctx.moveTo(dividerX, 0);
+      ctx.lineTo(dividerX, canvas.height);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Draw Particles
+    particles.forEach(p => {
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life;
+      ctx.fillRect(p.x, p.y, 3, 3);
+    });
+    ctx.globalAlpha = 1;
+
+    // Draw Traffic
+    traffic.forEach(car => drawCar(car.x, car.y, car.color));
+
+    // Draw Player
+    drawCar(player.x, player.y, '#00f2fe', true, player.tilt);
+  }
+
+  function loop() {
+    update();
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  function startGame() {
+    initAudio();
+    playTone(440, 'sine', 0.1);
+    traffic = [];
+    particles = [];
+    player.x = 200;
+    player.vx = 0;
+    score = 0;
+    speed = 90;
+    gameRunning = true;
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('gameOverScreen').classList.add('hidden');
+  }
+
+  function gameOver() {
+    gameRunning = false;
+    playTone(150, 'sawtooth', 0.35, 0.3); // Crash impact tone
+    document.getElementById('finalScoreTxt').innerText = `Final Score: ${score}`;
+    document.getElementById('gameOverScreen').classList.remove('hidden');
+  }
+
+  // Keyboard Listeners
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') {
+      keys.up = true;
+      boostActive = true;
+    }
+  });
+
+  window.addEventListener('keyup', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') {
+      keys.up = false;
+      boostActive = false;
+    }
+  });
+
+  // Mobile / Touch Controls
+  const leftBtn = document.getElementById('leftBtn');
+  const rightBtn = document.getElementById('rightBtn');
+  const boostBtn = document.getElementById('boostBtn');
+
+  leftBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.left = true; });
+  leftBtn.addEventListener('touchend', () => keys.left = false);
+  rightBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.right = true; });
+  rightBtn.addEventListener('touchend', () => keys.right = false);
+  boostBtn.addEventListener('touchstart', (e) => { e.preventDefault(); boostActive = true; });
+  boostBtn.addEventListener('touchend', () => boostActive = false);
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('restartBtn').addEventListener('click', startGame);
+
+  requestAnimationFrame(loop);
+</script>
+</body>
+</<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Arcade Speed Racer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      color: #fff;
+    }
+    #game-container {
+      position: relative;
+      width: 100%;
+      max-width: 380px;
+      height: 85vh;
+      max-height: 620px;
+      background: #1e293b;
+      border: 3px solid #38bdf8;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #334155;
+    }
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 16px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+    #controls {
+      display: flex;
+      width: 100%;
+      max-width: 380px;
+      margin-top: 10px;
+      gap: 12px;
+      padding: 0 10px;
+    }
+    .ctrl-btn {
+      flex: 1;
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 4px #0369a1;
+      active-box-shadow: 0 0 #0369a1;
+      touch-action: manipulation;
+    }
+    .ctrl-btn:active {
+      transform: translateY(4px);
+      box-shadow: none;
+      background: #0369a1;
+    }
+    #game-over-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.88);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      text-align: center;
+    }
+    #game-over-overlay h2 {
+      font-size: 28px;
+      color: #f43f5e;
+    }
+    #restart-btn {
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: bold;
+      background: #22c55e;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="360" height="600"></canvas>
+    
+    <div id="hud">
+      <div>SCORE: <span id="scoreVal" style="color: #38bdf8;">0</span></div>
+      <div>SPEED: <span id="speedVal" style="color: #facc15;">1x</span></div>
+    </div>
+
+    <div id="game-over-overlay">
+      <h2>CRASHED!</h2>
+      <p style="font-size: 18px;">Final Score: <span id="finalScore">0</span></p>
+      <button id="restart-btn" onclick="resetGame()">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="btnLeft">◀ LEFT</button>
+    <button class="ctrl-btn" id="btnRight">RIGHT ▶</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreVal = document.getElementById('scoreVal');
+    const speedVal = document.getElementById('speedVal');
+    const gameOverOverlay = document.getElementById('game-over-overlay');
+    const finalScore = document.getElementById('finalScore');
+
+    let isGameOver = false;
+    let score = 0;
+    let speed = 5;
+    let roadOffset = 0;
+
+    const player = {
+      x: 155,
+      y: 480,
+      width: 46,
+      height: 80,
+      speed: 6,
+      movingLeft: false,
+      movingRight: false
+    };
+
+    let traffic = [];
+    const colors = ['#f43f5e', '#a855f7', '#eab308', '#10b981'];
+
+    function drawCar(x, y, width, height, color, isPlayer = false) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, 8);
+      ctx.fill();
+
+      // Windshield & Roof
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(x + 6, y + (isPlayer ? 18 : 36), width - 12, 18);
+
+      // Headlights / Taillights
+      ctx.fillStyle = isPlayer ? '#fef08a' : '#ef4444';
+      ctx.fillRect(x + 4, y + (isPlayer ? 4 : height - 8), 8, 4);
+      ctx.fillRect(x + width - 12, y + (isPlayer ? 4 : height - 8), 8, 4);
+    }
+
+    function spawnTraffic() {
+      if (Math.random() < 0.03 && traffic.length < 4) {
+        const laneX = [40, 115, 195, 270][Math.floor(Math.random() * 4)];
+        const collides = traffic.some(t => Math.abs(t.y) < 130 && Math.abs(t.x - laneX) < 40);
+        if (!collides) {
+          traffic.push({
+            x: laneX,
+            y: -100,
+            width: 44,
+            height: 75,
+            speed: speed * 0.6 + Math.random() * 1.5,
+            color: colors[Math.floor(Math.random() * colors.length)]
+          });
+        }
+      }
+    }
+
+    function update() {
+      if (isGameOver) return;
+
+      roadOffset = (roadOffset + speed) % 40;
+
+      if (player.movingLeft && player.x > 25) player.x -= player.speed;
+      if (player.movingRight && player.x < canvas.width - player.width - 25) player.x += player.speed;
+
+      score += 1;
+      scoreVal.innerText = Math.floor(score / 5);
+
+      if (score % 600 === 0) {
+        speed += 0.5;
+        player.speed += 0.2;
+        speedVal.innerText = (speed / 5).toFixed(1) + 'x';
+      }
+
+      spawnTraffic();
+
+      for (let i = traffic.length - 1; i >= 0; i--) {
+        const car = traffic[i];
+        car.y += car.speed;
+
+        // Collision Check
+        if (
+          player.x < car.x + car.width - 4 &&
+          player.x + player.width > car.x + 4 &&
+          player.y < car.y + car.height - 4 &&
+          player.y + player.height > car.y + 4
+        ) {
+          endGame();
+          return;
+        }
+
+        if (car.y > canvas.height + 100) {
+          traffi.splice(i, 1);
+        }
+      }
+    }
+
+    function draw() {
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Road Borders
+      ctx.fillStyle = '#64748b';
+      ctx.fillRect(0, 0, 20, canvas.height);
+      ctx.fillRect(canvas.width - 20, 0, 20, canvas.height);
+
+      // Lane Lines
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([20, 20]);
+      ctx.lineDashOffset = -roadOffset;
+
+      [105, 180, 255].forEach(x => {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      });
+
+      traffic.forEach(car => drawCar(car.x, car.y, car.width, car.height, car.color));
+      drawCar(player.x, player.y, player.width, player.height, '#06b6d4', true);
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      if (!isGameOver) requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+      isGameOver = true;
+      finalScore.innerText = Math.floor(score / 5);
+      gameOverOverlay.style.display = 'flex';
+    }
+
+    function resetGame() {
+      isGameOver = false;
+      score = 0;
+      speed = 5;
+      player.x = 155;
+      player.speed = 6;
+      traffic = [];
+      scoreVal.innerText = '0';
+      speedVal.innerText = '1x';
+      gameOverOverlay.style.display = 'none';
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Touch Button Handlers
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+
+    const setLeft = (val) => (e) => { e.preventDefault(); player.movingLeft = val; };
+    const setRight = (val) => (e) => { e.preventDefault(); player.movingRight = val; };
+
+    btnLeft.addEventListener('touchstart', setLeft(true));
+    btnLeft.addEventListener('touchend', setLeft(false));
+    btnLeft.addEventListener('mousedown', setLeft(true));
+    btnLeft.addEventListener('mouseup', setLeft(false));
+
+    btnRight.addEventListener('touchstart', setRight(true));
+    btnRight.addEventListener('touchend', setRight(false));
+    btnRight.addEventListener('mousedown', setRight(true));
+    btnRight.addEventListener('mouseup', setRight(false));
+
+    // Keyboard Handlers
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') player.movingLeft = true;
+      if (e.key === 'ArrowRight' || e.key === 'd') player.movingRight = true;
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'a') player.movingLeft = false;
+      if (e.key === 'ArrowRight' || e.key === 'd') player.movingRight = false;
+    });
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
